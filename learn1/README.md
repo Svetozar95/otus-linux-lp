@@ -19,13 +19,13 @@ Vagrant.configure("2") do |config|
   config.vm.box_version = "1"
 end
 ```
-Проверку можно осуществить через загрузку [Vagrant File](https://github.com/Svetozar95/otus-linux/blob/master/Learn1/kernel-auto-update/Vagrantfile)
+Проверку можно осуществить через загрузку [Vagrant File](https://github.com/Svetozar95/otus-linux-lp/blob/main/learn1/Vagrantfile)
 ```
 ## Создадим тестовую директорию перейдем в неё
 mkdir test; cd test;
 
 ## Скачаем готовый Vagrant File 
-wget https://github.com/Svetozar95/otus-linux/blob/master/Learn1/kernel-auto-update/Vagrantfile
+wget https://github.com/Svetozar95/otus-linux-lp/blob/main/learn1/Vagrantfile
 
 ## Запустим vagrant
 vagrant up
