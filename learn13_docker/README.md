@@ -23,42 +23,5 @@
 
 
 * Репозиторий  docker.io/svetozar/otus-custom-nginx
-* 
 
 
-
---------------------------------
-
-## Выполняем задание
-
-##### Скачаем скрипт 
-
-Скрипт кладем в нужную Вам дирректорию. Для примера в /tmp/
-
-```
-cd /tmp
-wget  https://raw.githubusercontent.com/Svetozar95/otus-linux/master/month1/Learn9/logger.sh 
-chmod u+x /tmp/logger.sh
-```
-
-##### Настроим скрипт
-
-```
-LOGPATH="./access-4560-644067.log" ## Путь до лога
-EMAIL_USER="test@localhost.ru" ## Почта для отправки
-``` 
-
-##### Настроим cron
-
-Добавим в файл /var/spool/cron/root
-
-```
-0 * * * * /tmp/logger.sh
-
-```
-
-##### Использовалось для выполнения
-
-* 31 слайд призентации
-* свои наработки по поиску кодов ответов
-* чуть-чуть свободных источников
