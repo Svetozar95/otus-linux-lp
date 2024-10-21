@@ -3,7 +3,7 @@
 
 MACHINES = {
   :nginx => {
-        :box_name => "generic/ubuntu2204",
+        :box_name => "ubuntu/jammy64",
         :vm_name => "nginx",
         :net => [
            ["192.168.11.150",  2, "255.255.255.0", "mynet"],
@@ -37,6 +37,8 @@ Vagrant.configure("2") do |config|
 
       config.vm.provider "virtualbox" do |vb|
         vb.customize ["modifyvm", :id, "--cableconnected1", "on"]
+        vb.customize ["modifyvm", :id, "--uartmode1", "disconnected" ]
+        vb.customize ["modifyvm", :id, "--uart1", "0x3F8", "4"]
     end
 
     config.vm.provider :virtualbox do |vb|
