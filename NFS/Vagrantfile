@@ -1,0 +1,37 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/jammy64"
+  config.vm.boot_timeout = 1600 # 10 minutes
+
+  config.vm.define "server", parallel: true do |server|
+    server.vm.hostname = "server"
+    server.vm.network "private_network", ip: "192.168.56.10"
+    server.vm.provider "virtualbox" do |vb|
+      vb.cpus = 2
+      vb.memory = 1024
+      vb.customize [ "modifyvm", :id, "--uartmode1", "disconnected" ]
+      vb.customize ["modifyvm", :id, "--uart1", "0x3F8", "4"]
+    end
+    server.vm.provision "shell", inline: <<-SHELL
+      sudo apt-get install -y nfs-kernel-server
+      sudo mkdir -p /srv/nfs/upload
+      sudo chmod 777 /srv/nfs/upload
+      echo "/srv/nfs 192.168.56.11(rw,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
+      sudo systemctl restart nfs-kernel-server
+    SHELL
+  end
+
+  config.vm.define "client", parallel: true do |client|
+    client.vm.hostname = "client"
+    client.vm.network "private_network", ip: "192.168.56.11"
+    client.vm.provider "virtualbox" do |vb|
+      vb.cpus = 2
+      vb.memory = 1024
+    end
+    client.vm.provision "shell", inline: <<-SHELL
+      sudo apt-get install -y nfs-common
+      sudo mkdir -p /mnt/nfs
+      echo "192.168.56.10:/srv/nfs /mnt/nfs nfs vers=3,rw,auto,nolock,noatime,nodiratime 0 0" | sudo tee -a /etc/fstab
+      sudo mount -a
+    SHELL
+  end
+end
