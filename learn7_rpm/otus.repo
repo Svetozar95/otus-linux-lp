@@ -1,5 +1,0 @@
-[otus]
-name=otus-linux
-baseurl=http://rpm.linuxporn.ru/
-gpgcheck=0
-enabled=1
