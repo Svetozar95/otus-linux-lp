@@ -1,0 +1,57 @@
+ # -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # Сервер-хост для репозитория
+  config.vm.define "repo" do |repo|
+    repo.vm.box = "centos/8"
+    repo.vm.hostname = "repo.example.com"
+    repo.vm.network "private_network", ip: "192.168.56.10"
+    repo.vm.provision "shell", inline: <<-SHELL
+      yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+      # Установка пакета centos-release
+      yum install -y centos-release
+      
+      # Установка NGINX
+      yum install -y nginx
+      
+      # Создаем директорию для репозитория
+      mkdir -p /usr/share/nginx/html/repo
+      # Копируем туда RPM-пакеты
+      cp /vagrant/nginx-1.18.0-2.el7.ngx.x86_64.rpm /usr/share/nginx/html/repo/
+      # Инициализируем репозиторий
+      createrepo /usr/share/nginx/html/repo/
+      
+      # Настраиваем NGINX
+      cat << EOF > /etc/nginx/conf.d/repo.conf
+      location /repo {
+          autoindex on;
+          index index.html index.htm;
+      }
+      EOF
+      
+      # Включаем и запускаем NGINX
+      systemctl enable nginx
+      systemctl start nginx
+    SHELL
+  end
+
+  # Клиентский сервер
+  config.vm.define "client" do |client|
+    client.vm.box = "centos/8"
+    client.vm.hostname = "client.example.com"
+    client.vm.network "private_network", ip: "192.168.56.11"
+    client.vm.provision "shell", inline: <<-SHELL
+      # Создаем файл репозитория
+      cat << EOF > /etc/yum.repos.d/otus.repo
+      [otus]
+      name=otus-linux
+      baseurl=http://192.168.56.10/repo
+      gpgcheck=0
+      enabled=1
+      EOF
+      # Обновляем кэш репозитория
+      yum makecache
+    SHELL
+  end
+end

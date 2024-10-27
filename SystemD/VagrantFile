@@ -1,0 +1,141 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/jammy64"
+
+  config.vm.provider "virtualbox" do |v|
+    v.cpus = 2
+    v.memory = 1024
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    # Install necessary packages
+    apt-get update
+    apt-get install -y spawn-fcgi php php-cgi php-cli apache2 libapache2-mod-fcgid
+
+    # Configure spawn-fcgi
+    cat <<EOF > /etc/spawn-fcgi/fcgi.conf
+SOCKET=/var/run/php-fcgi.sock
+OPTIONS="-u www-data -g www-data -s \$SOCKET -S -M 0600 -C 32 -F 1 -- /usr/bin/php-cgi"
+EOF
+
+    # Create spawn-fcgi systemd unit
+    cat <<EOF > /etc/systemd/system/spawn-fcgi.service
+[Unit]
+Description=Spawn-fcgi startup service by Otus
+After=network.target
+
+[Service]
+Type=simple
+PIDFile=/var/run/spawn-fcgi.pid
+EnvironmentFile=/etc/spawn-fcgi/fcgi.conf
+ExecStart=/usr/bin/spawn-fcgi -n \$OPTIONS
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Create watchlog script
+    cat <<EOF > /opt/watchlog.sh
+#!/bin/bash
+
+WORD=\$1
+LOG=\$2
+DATE=\`date\`
+
+if grep \$WORD \$LOG &> /dev/null
+then
+  logger "\$DATE: I found word, Master!"
+else
+  exit 0
+fi
+EOF
+    chmod +x /opt/watchlog.sh
+
+    # Create watchlog systemd unit
+    cat <<EOF > /etc/systemd/system/watchlog.service
+[Unit]
+Description=My watchlog service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/default/watchlog
+ExecStart=/opt/watchlog.sh \$WORD \$LOG
+EOF
+
+    cat <<EOF > /etc/systemd/system/watchlog.timer
+[Unit]
+Description=Run watchlog script every 30 second
+
+[Timer]
+# Run every 30 second
+OnUnitActiveSec=30
+Unit=watchlog.service
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Create watchlog default config
+    cat <<EOF > /etc/default/watchlog
+# Configuration file for my watchlog service
+# Place it to /etc/default
+
+# File and word in that file that we will be monit
+WORD="ALERT"
+LOG=/var/log/watchlog.log
+EOF
+
+    # Create nginx systemd unit with template
+    cat <<EOF > /etc/systemd/system/nginx@.service
+[Unit]
+Description=A high performance web server and a reverse proxy server
+Documentation=man:nginx(8)
+After=network.target nss-lookup.target
+
+[Service]
+Type=forking
+PIDFile=/run/nginx-%I.pid
+ExecStartPre=/usr/sbin/nginx -t -c /etc/nginx/nginx-%I.conf -q -g 'daemon on; master_process on;'
+ExecStart=/usr/sbin/nginx -c /etc/nginx/nginx-%I.conf -g 'daemon on; master_process on;'
+ExecReload=/usr/sbin/nginx -c /etc/nginx/nginx-%I.conf -g 'daemon on; master_process on;' -s reload
+ExecStop=-/sbin/start-stop-daemon --quiet --stop --retry QUIT/5 --pidfile /run/nginx-%I.pid
+TimeoutStopSec=5
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # Install and configure Nginx
+    apt-get install -y nginx
+    cat <<EOF > /etc/nginx/nginx-first.conf
+pid /run/nginx-first.pid;
+
+http {
+    server {
+        listen 9001;
+    }
+#include /etc/nginx/sites-enabled/*;
+}
+EOF
+
+    cat <<EOF > /etc/nginx/nginx-second.conf
+pid /run/nginx-second.pid;
+
+http {
+    server {
+        listen 9002;
+    }
+#include /etc/nginx/sites-enabled/*;
+}
+EOF
+
+    # Start services
+    systemctl start watchlog.timer
+    systemctl start nginx@first
+    systemctl start nginx@second
+  SHELL
+end
